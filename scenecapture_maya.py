@@ -5,7 +5,7 @@
 # Mike Bonnington <michael@recomfarmhouse.com>
 # (c) 2020 Recom Farmhouse
 #
-# A tool for capturing object and camera layouts during angle sessions.
+# A tool for capturing object and camera layouts for stills.
 # Ported from existing VRED tool.
 
 '''
@@ -17,6 +17,7 @@ scenecapture_maya.run_maya()
 '''
 
 
+import json
 import os
 import re
 import sys
@@ -33,12 +34,15 @@ from Qt import QtCompat, QtCore, QtGui, QtWidgets
 # Configuration
 # ----------------------------------------------------------------------------
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
+
+CAPTURE_SET = "sceneCapture_set1"
+CAPTURE_ATTR_PREFIX = "captureData_"
 
 cfg = {}
 
 # Set window title and object names
-cfg['window_title'] = "RFH Scene Capture"
+cfg['window_title'] = "RFH Scene Capture v" + __version__
 cfg['window_object'] = "sceneCaptureUI"
 
 # Set the UI and the stylesheet
@@ -72,81 +76,81 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		# Set icons
 
 		# Connect signals & slots
-		self.ui.pick_root1.clicked.connect(lambda: self.pick_root(1))
-		self.ui.pick_root2.clicked.connect(lambda: self.pick_root(2))
-		self.ui.pick_root3.clicked.connect(lambda: self.pick_root(3))
-		self.ui.pick_root4.clicked.connect(lambda: self.pick_root(4))
-		self.ui.pick_root5.clicked.connect(lambda: self.pick_root(5))
-		self.ui.pick_root6.clicked.connect(lambda: self.pick_root(6))
-		self.ui.pick_root7.clicked.connect(lambda: self.pick_root(7))
-		self.ui.pick_root8.clicked.connect(lambda: self.pick_root(8))
-		self.ui.pick_root9.clicked.connect(lambda: self.pick_root(9))
-		self.ui.pick_root10.clicked.connect(lambda: self.pick_root(10))
+		# self.ui.pick_root1.clicked.connect(lambda: self.pick_root(1))
+		# self.ui.pick_root2.clicked.connect(lambda: self.pick_root(2))
+		# self.ui.pick_root3.clicked.connect(lambda: self.pick_root(3))
+		# self.ui.pick_root4.clicked.connect(lambda: self.pick_root(4))
+		# self.ui.pick_root5.clicked.connect(lambda: self.pick_root(5))
+		# self.ui.pick_root6.clicked.connect(lambda: self.pick_root(6))
+		# self.ui.pick_root7.clicked.connect(lambda: self.pick_root(7))
+		# self.ui.pick_root8.clicked.connect(lambda: self.pick_root(8))
+		# self.ui.pick_root9.clicked.connect(lambda: self.pick_root(9))
+		# self.ui.pick_root10.clicked.connect(lambda: self.pick_root(10))
 
 		self.ui.capture_action.clicked.connect(self.capture)
 
-		self.ui.set1.clicked.connect(lambda: self.set_nodes(1))
-		self.ui.set2.clicked.connect(lambda: self.set_nodes(2))
-		self.ui.set3.clicked.connect(lambda: self.set_nodes(3))
-		self.ui.set4.clicked.connect(lambda: self.set_nodes(4))
-		self.ui.set5.clicked.connect(lambda: self.set_nodes(5))
-		self.ui.set6.clicked.connect(lambda: self.set_nodes(6))
-		self.ui.set7.clicked.connect(lambda: self.set_nodes(7))
-		self.ui.set8.clicked.connect(lambda: self.set_nodes(8))
-		self.ui.set9.clicked.connect(lambda: self.set_nodes(9))
-		self.ui.set10.clicked.connect(lambda: self.set_nodes(10))
-		self.ui.set11.clicked.connect(lambda: self.set_nodes(11))
-		self.ui.set12.clicked.connect(lambda: self.set_nodes(12))
-		self.ui.set13.clicked.connect(lambda: self.set_nodes(13))
-		self.ui.set14.clicked.connect(lambda: self.set_nodes(14))
-		self.ui.set15.clicked.connect(lambda: self.set_nodes(15))
-		self.ui.set16.clicked.connect(lambda: self.set_nodes(16))
-		self.ui.set17.clicked.connect(lambda: self.set_nodes(17))
-		self.ui.set18.clicked.connect(lambda: self.set_nodes(18))
-		self.ui.set19.clicked.connect(lambda: self.set_nodes(19))
-		self.ui.set20.clicked.connect(lambda: self.set_nodes(20))
+		self.ui.set1.clicked.connect(lambda: self.restore(1))
+		self.ui.set2.clicked.connect(lambda: self.restore(2))
+		self.ui.set3.clicked.connect(lambda: self.restore(3))
+		self.ui.set4.clicked.connect(lambda: self.restore(4))
+		self.ui.set5.clicked.connect(lambda: self.restore(5))
+		self.ui.set6.clicked.connect(lambda: self.restore(6))
+		self.ui.set7.clicked.connect(lambda: self.restore(7))
+		self.ui.set8.clicked.connect(lambda: self.restore(8))
+		self.ui.set9.clicked.connect(lambda: self.restore(9))
+		self.ui.set10.clicked.connect(lambda: self.restore(10))
+		self.ui.set11.clicked.connect(lambda: self.restore(11))
+		self.ui.set12.clicked.connect(lambda: self.restore(12))
+		self.ui.set13.clicked.connect(lambda: self.restore(13))
+		self.ui.set14.clicked.connect(lambda: self.restore(14))
+		self.ui.set15.clicked.connect(lambda: self.restore(15))
+		self.ui.set16.clicked.connect(lambda: self.restore(16))
+		self.ui.set17.clicked.connect(lambda: self.restore(17))
+		self.ui.set18.clicked.connect(lambda: self.restore(18))
+		self.ui.set19.clicked.connect(lambda: self.restore(19))
+		self.ui.set20.clicked.connect(lambda: self.restore(20))
 
-		self.ui.captured_name_1.returnPressed.connect(lambda: self.text_edit(1))
-		self.ui.captured_name_2.returnPressed.connect(lambda: self.text_edit(2))
-		self.ui.captured_name_3.returnPressed.connect(lambda: self.text_edit(3))
-		self.ui.captured_name_4.returnPressed.connect(lambda: self.text_edit(4))
-		self.ui.captured_name_5.returnPressed.connect(lambda: self.text_edit(5))
-		self.ui.captured_name_6.returnPressed.connect(lambda: self.text_edit(6))
-		self.ui.captured_name_7.returnPressed.connect(lambda: self.text_edit(7))
-		self.ui.captured_name_8.returnPressed.connect(lambda: self.text_edit(8))
-		self.ui.captured_name_9.returnPressed.connect(lambda: self.text_edit(9))
-		self.ui.captured_name_10.returnPressed.connect(lambda: self.text_edit(10))
-		self.ui.captured_name_11.returnPressed.connect(lambda: self.text_edit(11))
-		self.ui.captured_name_12.returnPressed.connect(lambda: self.text_edit(12))
-		self.ui.captured_name_13.returnPressed.connect(lambda: self.text_edit(13))
-		self.ui.captured_name_14.returnPressed.connect(lambda: self.text_edit(14))
-		self.ui.captured_name_15.returnPressed.connect(lambda: self.text_edit(15))
-		self.ui.captured_name_16.returnPressed.connect(lambda: self.text_edit(16))
-		self.ui.captured_name_17.returnPressed.connect(lambda: self.text_edit(17))
-		self.ui.captured_name_18.returnPressed.connect(lambda: self.text_edit(18))
-		self.ui.captured_name_19.returnPressed.connect(lambda: self.text_edit(19))
-		self.ui.captured_name_20.returnPressed.connect(lambda: self.text_edit(20))
+		# self.ui.captured_name_1.returnPressed.connect(lambda: self.rename(1))
+		# self.ui.captured_name_2.returnPressed.connect(lambda: self.rename(2))
+		# self.ui.captured_name_3.returnPressed.connect(lambda: self.rename(3))
+		# self.ui.captured_name_4.returnPressed.connect(lambda: self.rename(4))
+		# self.ui.captured_name_5.returnPressed.connect(lambda: self.rename(5))
+		# self.ui.captured_name_6.returnPressed.connect(lambda: self.rename(6))
+		# self.ui.captured_name_7.returnPressed.connect(lambda: self.rename(7))
+		# self.ui.captured_name_8.returnPressed.connect(lambda: self.rename(8))
+		# self.ui.captured_name_9.returnPressed.connect(lambda: self.rename(9))
+		# self.ui.captured_name_10.returnPressed.connect(lambda: self.rename(10))
+		# self.ui.captured_name_11.returnPressed.connect(lambda: self.rename(11))
+		# self.ui.captured_name_12.returnPressed.connect(lambda: self.rename(12))
+		# self.ui.captured_name_13.returnPressed.connect(lambda: self.rename(13))
+		# self.ui.captured_name_14.returnPressed.connect(lambda: self.rename(14))
+		# self.ui.captured_name_15.returnPressed.connect(lambda: self.rename(15))
+		# self.ui.captured_name_16.returnPressed.connect(lambda: self.rename(16))
+		# self.ui.captured_name_17.returnPressed.connect(lambda: self.rename(17))
+		# self.ui.captured_name_18.returnPressed.connect(lambda: self.rename(18))
+		# self.ui.captured_name_19.returnPressed.connect(lambda: self.rename(19))
+		# self.ui.captured_name_20.returnPressed.connect(lambda: self.rename(20))
 
-		self.ui.recap1.clicked.connect(lambda: self.recapture_nodes(1))
-		self.ui.recap2.clicked.connect(lambda: self.recapture_nodes(2))
-		self.ui.recap3.clicked.connect(lambda: self.recapture_nodes(3))
-		self.ui.recap4.clicked.connect(lambda: self.recapture_nodes(4))
-		self.ui.recap5.clicked.connect(lambda: self.recapture_nodes(5))
-		self.ui.recap6.clicked.connect(lambda: self.recapture_nodes(6))
-		self.ui.recap7.clicked.connect(lambda: self.recapture_nodes(7))
-		self.ui.recap8.clicked.connect(lambda: self.recapture_nodes(8))
-		self.ui.recap9.clicked.connect(lambda: self.recapture_nodes(9))
-		self.ui.recap10.clicked.connect(lambda: self.recapture_nodes(10))
-		self.ui.recap11.clicked.connect(lambda: self.recapture_nodes(11))
-		self.ui.recap12.clicked.connect(lambda: self.recapture_nodes(12))
-		self.ui.recap13.clicked.connect(lambda: self.recapture_nodes(13))
-		self.ui.recap14.clicked.connect(lambda: self.recapture_nodes(14))
-		self.ui.recap15.clicked.connect(lambda: self.recapture_nodes(15))
-		self.ui.recap16.clicked.connect(lambda: self.recapture_nodes(16))
-		self.ui.recap17.clicked.connect(lambda: self.recapture_nodes(17))
-		self.ui.recap18.clicked.connect(lambda: self.recapture_nodes(18))
-		self.ui.recap19.clicked.connect(lambda: self.recapture_nodes(19))
-		self.ui.recap20.clicked.connect(lambda: self.recapture_nodes(20))
+		self.ui.recap1.clicked.connect(lambda: self.recapture(1))
+		self.ui.recap2.clicked.connect(lambda: self.recapture(2))
+		self.ui.recap3.clicked.connect(lambda: self.recapture(3))
+		self.ui.recap4.clicked.connect(lambda: self.recapture(4))
+		self.ui.recap5.clicked.connect(lambda: self.recapture(5))
+		self.ui.recap6.clicked.connect(lambda: self.recapture(6))
+		self.ui.recap7.clicked.connect(lambda: self.recapture(7))
+		self.ui.recap8.clicked.connect(lambda: self.recapture(8))
+		self.ui.recap9.clicked.connect(lambda: self.recapture(9))
+		self.ui.recap10.clicked.connect(lambda: self.recapture(10))
+		self.ui.recap11.clicked.connect(lambda: self.recapture(11))
+		self.ui.recap12.clicked.connect(lambda: self.recapture(12))
+		self.ui.recap13.clicked.connect(lambda: self.recapture(13))
+		self.ui.recap14.clicked.connect(lambda: self.recapture(14))
+		self.ui.recap15.clicked.connect(lambda: self.recapture(15))
+		self.ui.recap16.clicked.connect(lambda: self.recapture(16))
+		self.ui.recap17.clicked.connect(lambda: self.recapture(17))
+		self.ui.recap18.clicked.connect(lambda: self.recapture(18))
+		self.ui.recap19.clicked.connect(lambda: self.recapture(19))
+		self.ui.recap20.clicked.connect(lambda: self.recapture(20))
 
 		self.ui.del1.clicked.connect(lambda: self.delete(1))
 		self.ui.del2.clicked.connect(lambda: self.delete(2))
@@ -195,106 +199,71 @@ class SceneCaptureUI(QtWidgets.QDialog):
 	def init_me(self):
 		""" Set up scene capture nodes.
 		"""
-		if not mc.objExists("sceneCapture_DONT_DELETE"):
-			root_set = mc.createNode('transform', name="sceneCapture_DONT_DELETE" )  # sort in system
-			roots = mc.createNode('transform', name="root_nodes", parent=root_set)
-			captures = mc.createNode('transform', name="capture_nodes", parent=root_set)
-			settings = mc.createNode('transform', name="rendersettings", parent=root_set)
-			width = mc.createNode('transform', name="renderwidth", parent=settings)
-			# mc.createNode('transform', name="2000", parent=width)
-			height = mc.createNode('transform', name="renderheight", parent=settings)
-			# mc.createNode('transform', name="1500", parent=height)
-			path = mc.createNode('transform', name="path", parent=settings)
-			# mc.createNode('transform', name="c:/", parent=path)
+		# Check for existing capture data and populate list in UI
+		self.root_set = CAPTURE_SET
+		if mc.objExists(self.root_set):
+			capture_list = mc.listAttr(self.root_set, userDefined=True)
+			i = 1
+			if capture_list:
+				for attr_name in capture_list:
+					if attr_name.startswith(CAPTURE_ATTR_PREFIX):
+						capture_id = attr_name.replace(CAPTURE_ATTR_PREFIX, "")
+						self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % i).setEnabled(True)
+						lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i)
+						lineEdit.setEnabled(True)
+						lineEdit.setText(capture_id)
+						self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "recap%d" % i).setEnabled(True)
+						self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "del%d" % i).setEnabled(True)
+						i += 1 # will break after 20
 
+		# Create set to hold capture data
 		else:
-			for i in range(1, 21):
-				if mc.objExists("sceneCap_rootNode_%d" % i):
-					name = mc.listRelatives("sceneCap_rootNode_%d" % i, type='transform')[0]
-					name = name.replace("_GEOM", "")
-					lineEdit = self.ui.root_box.findChild(QtWidgets.QLineEdit, "root%d" % i)
-					lineEdit.setText(name)
-
-				# untested ---------------------------------------------------
-				if mc.objExists("sceneCap_Slot_%d" % i):
-					name = mc.listRelatives("sceneCap_Slot_%d" % i, type='transform')[0]
-					self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % i).setEnabled(True)
-					lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i)
-					lineEdit.setEnabled(True)
-					lineEdit.setText(name)
-					self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "recap%d" % i).setEnabled(True)
-					self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "del%d" % i).setEnabled(True)
-				# ------------------------------------------------------------
-
-			# if findNode("renderwidth").getChild(0).isValid():
-			# 	width=findNode("renderwidth").getChild(0).getName()
-			# 	lineEdit = findQObject(render_box, "width")
-			# 	lineEdit.setProperty("text", width)
-
-			# if findNode("renderheight").getChild(0).isValid():
-			# 	height=findNode("renderheight").getChild(0).getName()
-			# 	lineEdit = findQObject(render_box, "height")
-			# 	lineEdit.setProperty("text", height)
-
-			# if findNode("path").getChild(0).isValid():
-			# 	path=findNode("path").getChild(0).getName()
-			# 	lineEdit = findQObject(render_box, "path")
-			# 	lineEdit.setProperty("text", path)
-
-		if not mc.objExists("rendersettings"):
-			print("add settings")
-			root_set = "sceneCapture_DONT_DELETE"  # sort in system
-			settings = createNode('transform', name="rendersettings", parent=root_set)
-			width = createNode('transform', name="renderwidth", parent=settings)
-			# createNode('transform', name="2000", parent=width)
-			height = createNode('transform', name="renderheight", parent=settings)
-			# createNode('transform', name="1500", parent=height)
-			path = createNode('transform', name="path", parent=settings)
-			# createNode('transform', name="c:/", parent=path)
+			self.root_set = mc.sets(n=self.root_set)
 
 
-	def pick_root(self, slot):
-		""" Pick a root node and add it to the specified slot.
-		"""
-		try:
-			node = mc.ls(selection=True, type='transform')[-1]
+	# def pick_root(self, slot):
+	# 	""" Pick a root node and add it to the specified slot.
+	# 	"""
+	# 	try:
+	# 		node = mc.ls(selection=True, type='transform')[-1]
 
-			root_slot = "sceneCap_rootNode_%d" % slot
-			lineEdit = self.ui.root_box.findChild(QtWidgets.QLineEdit, "root%d" % slot)
-			lineEdit.setText(node)
-			if mc.objExists(root_slot):
-				mc.delete(root_slot)
-			root = mc.createNode('transform', name=root_slot, parent="root_nodes")
-			mc.createNode('transform', name="%s_GEOM" % node, parent=root)
+	# 		root_slot = "sceneCap_rootNode_%d" % slot
+	# 		lineEdit = self.ui.root_box.findChild(QtWidgets.QLineEdit, "root%d" % slot)
+	# 		lineEdit.setText(node)
+	# 		if mc.objExists(root_slot):
+	# 			mc.delete(root_slot)
+	# 		root = mc.createNode('transform', name=root_slot, parent="root_nodes")
+	# 		mc.createNode('transform', name="%s_GEOM" % node, parent=root)
 
-			# untested -------------------------------------------------------
-			for i in range(1, 21):
-				#print("slot: %d" % i)
-				slot_to_change = "sceneCap_Slot_%d" % i
-				if mc.objExists(slot_to_change):
-					print("changing slot: %d" % i)
-					for j in range(1, 11):
-						root_to_change = mc.listRelatives(slot_to_change, type='transform')[j]
-						if mc.objExists(root_to_change):
-							print("rootname: %s" + root_to_change)
-							if root_to_change == "root%d" % slot:
-								child = mc.listRelatives(root_to_change, type='transform')[0]
-								print(child)
-								mc.rename(child, "GEOMNAME_"+node)
-			# ----------------------------------------------------------------
+	# 		# untested -------------------------------------------------------
+	# 		for i in range(1, 21):
+	# 			#print("slot: %d" % i)
+	# 			slot_to_change = "sceneCap_Slot_%d" % i
+	# 			if mc.objExists(slot_to_change):
+	# 				print("changing slot: %d" % i)
+	# 				for j in range(1, 11):
+	# 					root_to_change = mc.listRelatives(slot_to_change, type='transform')[j]
+	# 					if mc.objExists(root_to_change):
+	# 						print("rootname: %s" + root_to_change)
+	# 						if root_to_change == "root%d" % slot:
+	# 							child = mc.listRelatives(root_to_change, type='transform')[0]
+	# 							print(child)
+	# 							mc.rename(child, "GEOMNAME_"+node)
+	# 		# ----------------------------------------------------------------
 
-			mc.select(node)
+	# 		mc.select(node)
 
-		except IndexError:
-			mc.warning("Nothing selected.")
+	# 	except IndexError:
+	# 		mc.warning("Nothing selected.")
 
 
 	def capture(self):
-		""" Capture the scene state and add it to the next free slot.
+		""" Capture a snapshot of the current state and add it to the next
+			free slot.
 			TODO: Some of this code is pretty janky and should be refactored
 		"""
-		name = self.ui.capture_name.text()
-		print("capture set with name: " + name)
+		capture_id = self.ui.capture_name.text()
+		print("capture set with name: " + capture_id)
 
 		enabled = 1
 		i = 0
@@ -315,180 +284,122 @@ class SceneCaptureUI(QtWidgets.QDialog):
 				self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i).setEnabled(True)
 				self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "recap%d" % i).setEnabled(True)
 				self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "del%d" % i).setEnabled(True)
-				if name == "":
-					name = "unnamed%d" % i
-				# elif "_" in name:
-				# 	name = name + str(i)
-				if name in captured_names:
-					name += "_v%d" % i
+				if capture_id == "":
+					capture_id = "unnamed%d" % i
+				# elif "_" in capture_id:
+				# 	capture_id = capture_id + str(i)
+				if capture_id in captured_names:
+					capture_id += "_v%d" % i
 				lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i)
-				lineEdit.setText(name)
+				lineEdit.setText(capture_id)
 				enabled = 0
-				self.capture_nodes(i, name)
+				self.store(i, capture_id)
 	
 			if i == 20:
 				enabled=0
 				mc.warning("No free slots.")
 
 
-	def capture_nodes(self, slot, name):
-		""" Capture state and store data.
+	def recapture(self, slot):
+		""" Re-capture an existing snapshot.
 		"""
-		roots = "capture_nodes"
-		slot = mc.createNode('transform', name="sceneCap_Slot_%d" % slot, parent=roots)
-		slotname = mc.createNode('transform', name=name, parent=slot)
+		lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot)
+		capture_id = lineEdit.text()
 
-		# addViewPoint("SceneCap_" + name)
-		panel = mc.getPanel(withFocus=True)
-		camera = mc.modelPanel(panel, cam=True, q=True)
-		print(camera)
-		snapcam = mc.duplicate(camera, name="SceneCap_"+name, rr=True)
-		mc.parent(snapcam, slotname)
-
-		for i in range(1, 11):
-			current_node = self.ui.root_box.findChild(QtWidgets.QLineEdit, "root%d" % i).text()
-
-			if len(current_node):
-				print("hello")
-				rootnode = mc.createNode('transform', name="root%d" % i, parent=slot)
-				slotroot = mc.createNode('transform', name="GEOMNAME_"+current_node, parent=rootnode)
-
-				mc.matchTransform(slotroot, current_node)
-				mc.setAttr(slotroot+'.visibility', mc.getAttr(current_node+'.visibility'))
-
-				if mc.objExists("WHEEL_FL_TURN"):
-					wheelfl = mc.createNode('transform', name="GEOMNAME_WHEEL_FL_TURN", parent=rootnode)
-					mc.matchTransform(wheelfl, "WHEEL_FL_TURN")
-				if mc.objExists("WHEEL_FR_TURN"):
-					wheelfl = mc.createNode('transform', name="GEOMNAME_WHEEL_FR_TURN", parent=rootnode)
-					mc.matchTransform(wheelfl, "WHEEL_FR_TURN")
+		self.store(slot, capture_id)
 
 
-	def recapture_nodes(self, slot):
-		""" TODO: Almost identical to capture_nodes - could be combined
+	def store(self, slot, capture_id):
+		""" Store data for a captured state.
 		"""
-		mc.select(clear=True)
+		capture_data = {}
+		set_members = []
 
-		roots = "capture_nodes"
+		for node in mc.sets(self.root_set, q=True):
+			set_members.append(node)
 
-		name = mc.listRelatives("sceneCap_Slot_%d" % slot, type='transform')[0]
-		mc.delete("sceneCap_Slot_%d" % slot)
-		# removeViewPoint("SceneCap_" + name)
+			shapes = mc.listRelatives(node, shapes=True, fullPath=True)
+			if shapes:
+				for shape in shapes:
+					set_members.append(shape)
 
-		slot = mc.createNode('transform', name="sceneCap_Slot_%d" % slot, parent=roots)
-		slotname = mc.createNode('transform', name=name, parent=slot)
+		for node in set_members:
+			capture_data[node] = {}
 
-		# addViewPoint("SceneCap_" + name)
-		panel = mc.getPanel(withFocus=True)
-		camera = mc.modelPanel(panel, cam=True, q=True)
-		print(camera)
-		snapcam = mc.duplicate(camera, name="SceneCap_"+name, rr=True)
-		mc.parent(snapcam, slotname)
+			keyable_attrs = mc.listAttr(node, keyable=True)
+			if keyable_attrs:
+				for attr in keyable_attrs:
+					try:
+						capture_data[node][attr] = mc.getAttr(node+"."+attr)
+					except KeyError:
+						capture_data[node] = {attr: mc.getAttr(node+"."+attr)}
+					except RuntimeError as e:
+						mc.warning(str(e))
 
-		for i in range(1, 11):
-			current_node = self.ui.root_box.findChild(QtWidgets.QLineEdit, "root%d" % i).text()
-
-			if len(current_node):
-				print("recapture %s" % current_node)
-				rootnode = mc.createNode('transform', name="root%d" % i, parent=slot)
-				slotroot = mc.createNode('transform', name="GEOMNAME_"+current_node, parent=rootnode)
-
-				mc.matchTransform(slotroot, current_node)
-				mc.setAttr(slotroot+'.visibility', mc.getAttr(current_node+'.visibility'))
-
-				if mc.objExists("WHEEL_FL_TURN"):
-					wheelfl = mc.createNode('transform', name="GEOMNAME_WHEEL_FL_TURN", parent=rootnode)
-					mc.matchTransform(wheelfl, "WHEEL_FL_TURN")
-				if mc.objExists("WHEEL_FR_TURN"):
-					wheelfl = mc.createNode('transform', name="GEOMNAME_WHEEL_FR_TURN", parent=rootnode)
-					mc.matchTransform(wheelfl, "WHEEL_FR_TURN")
-
-				# mc.setAttr(rootnode+'.visibility', mc.getAttr(current_node+'.visibility'))
+		serialized_data = json.dumps(capture_data, indent=4, sort_keys=True)
+		attr_name = CAPTURE_ATTR_PREFIX + capture_id
+		if not mc.attributeQuery(attr_name, node=self.root_set, exists=True):
+			mc.addAttr(self.root_set, ln=attr_name, dt="string")
+		mc.setAttr(self.root_set+"."+attr_name, serialized_data, type="string")
 
 
-	def set_nodes(self, slot):
-		""" Restore captured state.
-			TODO: Make it work and refactor from this shit-show
+	def restore(self, slot):
+		""" Restore from a captured state.
 		"""
-		root = "sceneCap_Slot_%d" % slot
-		rootroots = mc.listRelatives(root, type='transform', fullPath=True)
-		num_roots = len(rootroots)
-		print("SET Slot %d" % slot)
+		lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot)
+		capture_id = lineEdit.text()
 
-		# Restore camera bookmark
-		name = "SceneCap_" + mc.listRelatives("sceneCap_Slot_%d" % slot, type='transform')[0]
-		# jumpViewPoint(name)
-		# print(name)
-		snapcam = rootroots[0]+"|SceneCap_*"
-		if mc.objExists(snapcam):
-			freecam = "FreeCam_*"
-			if mc.objExists(freecam):
-				mc.delete(freecam)
-			currentcam = mc.duplicate(snapcam, name="FreeCam_"+name, rr=True)
-			mc.parent(currentcam, "sceneCapture_DONT_DELETE")
-			panel = mc.getPanel(withFocus=True)
-			mc.lookThru(panel, currentcam)
+		attr_name = CAPTURE_ATTR_PREFIX + capture_id
+		capture_data = json.loads(mc.getAttr(self.root_set+"."+attr_name))
 
-		for i in range(num_roots-1):
-			rootnode = rootroots[i+1]
-			geom_name = mc.listRelatives(rootnode, type='transform', fullPath=True)[0]
-			node = geom_name.split("|")[-1].replace("GEOMNAME_", "")
-			print("moveNode: %s" % node)
-
-			if mc.objExists(node):
-				mc.matchTransform(node, geom_name)
-				mc.setAttr(node+'.visibility', mc.getAttr(geom_name+'.visibility'))
-
-				if mc.objExists(rootnode+"|GEOMNAME_WHEEL_FL_TURN"):
-					mc.matchTransform("WHEEL_FL_TURN", rootnode+"|GEOMNAME_WHEEL_FL_TURN")
-				if mc.objExists(rootnode+"|GEOMNAME_WHEEL_FR_TURN"):
-					mc.matchTransform("WHEEL_FR_TURN", rootnode+"|GEOMNAME_WHEEL_FR_TURN")
+		for node, attributes in capture_data.items():
+			for attr, value in attributes.items():
+				# print(node, attr, value)
+				try:
+					mc.setAttr(node+"."+attr, value)
+				except RuntimeError as e:
+					mc.warning(str(e))
 
 
 	def delete(self, slot):
-		""" Delete a capture.
+		""" Delete a saved capture.
 		"""
-		print("delete %d" % slot)
+		lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot)
+		capture_id = lineEdit.text()
+		attr_name = CAPTURE_ATTR_PREFIX + capture_id
 
-		name_lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot)
-		name_lineEdit.setEnabled(False)
-		name_lineEdit.setText("")
+		try:
+			mc.deleteAttr(self.root_set+"."+attr_name)
+		except ValueError as e:
+			mc.warning(str(e))
 
+		lineEdit.setEnabled(False)
+		lineEdit.setText("")
 		self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % slot).setEnabled(False)
 		self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "recap%d" % slot).setEnabled(False)
 		self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "del%d" % slot).setEnabled(False)
 
-		mc.delete("sceneCap_Slot_%d" % slot)
 
-		# name = findNode("sceneCap_Slot_%d" % slot).getChild(0).getName()
-		# # viewpoints=getViewpoints()
-		# # viewname="SceneCap_" + name
-		# # if viewname in viewpoints:
-		# removeViewPoint("SceneCap_" + name)
+	# def rename(self, slot):
+	# 	""" Change the name of a capture.
+	# 	"""
+	# 	slot_to_change = "sceneCap_Slot_%d" % slot
 
+	# 	if mc.objExists(slot_to_change):
+	# 		name_to_change = mc.listRelatives(slot_to_change, type='transform')[0]
 
-	def text_edit(self, slot):
-		""" Change the name of a capture.
-		"""
-		print("text_edit %d" % slot)
+	# 		if mc.objExists(name_to_change):
+	# 			print("slitti")  # ?
+	# 			# viewpoint_name = "SceneCap_" + slot_to_change.getChild(0).getName()
+	# 			# jumpViewPoint(viewpoint_name)
+	# 			# removeViewPoint(viewpoint_name)
 
-		slot_to_change = "sceneCap_Slot_%d" % slot
-
-		if mc.objExists(slot_to_change):
-			name_to_change = mc.listRelatives(slot_to_change, type='transform')[0]
-
-			if mc.objExists(name_to_change):
-				print("slitti")  # ?
-				# viewpoint_name = "SceneCap_" + slot_to_change.getChild(0).getName()
-				# jumpViewPoint(viewpoint_name)
-				# removeViewPoint(viewpoint_name)
-
-				name = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot).text()
-				print(name)
-				if name == "":
-					name = "unnamed%d" % slot
-				mc.rename(name_to_change, name)
-				# addViewPoint("SceneCap_" + name)
+	# 			name = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot).text()
+	# 			print(name)
+	# 			if name == "":
+	# 				name = "unnamed%d" % slot
+	# 			mc.rename(name_to_change, name)
+	# 			# addViewPoint("SceneCap_" + name)
 
 
 	def pick_swap(self, slot):
@@ -566,7 +477,7 @@ class SceneCaptureUI(QtWidgets.QDialog):
 			set_toolButton = self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % i)
 
 			if render_checkBox.checkState() == QtCore.Qt.Checked and set_toolButton.isEnabled():
-				self.set_nodes(i)
+				self.restore(i)
 
 				name_lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i)
 				filename = path+name_lineEdit.text()+extension
