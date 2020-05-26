@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
-# scenecapture.py
+# scenecapture_maya.py
 #
 # Mike Bonnington <michael@recomfarmhouse.com>
 # (c) 2020 Recom Farmhouse
 #
 # A tool for capturing object and camera layouts for stills.
-# Ported from existing VRED tool.
+# Adapted from existing VRED tool.
 
 '''
 Run with the following code, or add to shelf
@@ -16,11 +16,12 @@ scenecapture_maya.run_maya()
 
 '''
 
-
 import json
+import math
 import os
 import re
 import sys
+import time
 #from pkg_resources import resource_filename
 
 import maya.cmds as mc
@@ -28,16 +29,18 @@ import maya.cmds as mc
 from Qt import QtCompat, QtCore, QtGui, QtWidgets
 
 # Import custom modules
+from . import preview_maya
 
 
 # ----------------------------------------------------------------------------
 # Configuration
 # ----------------------------------------------------------------------------
 
-__version__ = "0.4.0"
+__version__ = "0.4.3"
 
 CAPTURE_SET = "sceneCapture_set1"
 CAPTURE_ATTR_PREFIX = "captureData_"
+SNAPSHOT_MAX_RES = [1024, 1024]
 
 cfg = {}
 
@@ -73,116 +76,29 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		self.setWindowFlags(QtCore.Qt.Tool)
 		#self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
+		# Makes Maya perform magic which makes the window stay on top in
+		# OS X and Linux. As an added bonus, it'll make Maya remember the
+		# window position.
+		self.setProperty("saveWindowPref", True)
+
 		# Set icons
+		# self.ui.capture_button.setIcon(self.iconSet('capture.svg'))
 
 		# Connect signals & slots
-		# self.ui.pick_root1.clicked.connect(lambda: self.pick_root(1))
-		# self.ui.pick_root2.clicked.connect(lambda: self.pick_root(2))
-		# self.ui.pick_root3.clicked.connect(lambda: self.pick_root(3))
-		# self.ui.pick_root4.clicked.connect(lambda: self.pick_root(4))
-		# self.ui.pick_root5.clicked.connect(lambda: self.pick_root(5))
-		# self.ui.pick_root6.clicked.connect(lambda: self.pick_root(6))
-		# self.ui.pick_root7.clicked.connect(lambda: self.pick_root(7))
-		# self.ui.pick_root8.clicked.connect(lambda: self.pick_root(8))
-		# self.ui.pick_root9.clicked.connect(lambda: self.pick_root(9))
-		# self.ui.pick_root10.clicked.connect(lambda: self.pick_root(10))
+		self.ui.capture_button.clicked.connect(lambda: self.store(self.ui.captureName_lineEdit.text()))
 
-		self.ui.capture_action.clicked.connect(self.capture)
+		# self.ui.width_spinBox.valueChanged.connect(self.width_edit)
+		# self.ui.height_spinBox.valueChanged.connect(self.height_edit)
+		# self.ui.path_lineEdit.returnPressed.connect(self.path_edit)
+		# self.ui.render_button.clicked.connect(self.render)
 
-		self.ui.set1.clicked.connect(lambda: self.restore(1))
-		self.ui.set2.clicked.connect(lambda: self.restore(2))
-		self.ui.set3.clicked.connect(lambda: self.restore(3))
-		self.ui.set4.clicked.connect(lambda: self.restore(4))
-		self.ui.set5.clicked.connect(lambda: self.restore(5))
-		self.ui.set6.clicked.connect(lambda: self.restore(6))
-		self.ui.set7.clicked.connect(lambda: self.restore(7))
-		self.ui.set8.clicked.connect(lambda: self.restore(8))
-		self.ui.set9.clicked.connect(lambda: self.restore(9))
-		self.ui.set10.clicked.connect(lambda: self.restore(10))
-		self.ui.set11.clicked.connect(lambda: self.restore(11))
-		self.ui.set12.clicked.connect(lambda: self.restore(12))
-		self.ui.set13.clicked.connect(lambda: self.restore(13))
-		self.ui.set14.clicked.connect(lambda: self.restore(14))
-		self.ui.set15.clicked.connect(lambda: self.restore(15))
-		self.ui.set16.clicked.connect(lambda: self.restore(16))
-		self.ui.set17.clicked.connect(lambda: self.restore(17))
-		self.ui.set18.clicked.connect(lambda: self.restore(18))
-		self.ui.set19.clicked.connect(lambda: self.restore(19))
-		self.ui.set20.clicked.connect(lambda: self.restore(20))
+		# Set input validators
+		alphanumeric_validator = QtGui.QRegExpValidator(QtCore.QRegExp(r'[a-zA-Z_][a-zA-Z0-9_]*'), self.ui.captureName_lineEdit)
+		self.ui.captureName_lineEdit.setValidator(alphanumeric_validator)
 
-		# self.ui.captured_name_1.returnPressed.connect(lambda: self.rename(1))
-		# self.ui.captured_name_2.returnPressed.connect(lambda: self.rename(2))
-		# self.ui.captured_name_3.returnPressed.connect(lambda: self.rename(3))
-		# self.ui.captured_name_4.returnPressed.connect(lambda: self.rename(4))
-		# self.ui.captured_name_5.returnPressed.connect(lambda: self.rename(5))
-		# self.ui.captured_name_6.returnPressed.connect(lambda: self.rename(6))
-		# self.ui.captured_name_7.returnPressed.connect(lambda: self.rename(7))
-		# self.ui.captured_name_8.returnPressed.connect(lambda: self.rename(8))
-		# self.ui.captured_name_9.returnPressed.connect(lambda: self.rename(9))
-		# self.ui.captured_name_10.returnPressed.connect(lambda: self.rename(10))
-		# self.ui.captured_name_11.returnPressed.connect(lambda: self.rename(11))
-		# self.ui.captured_name_12.returnPressed.connect(lambda: self.rename(12))
-		# self.ui.captured_name_13.returnPressed.connect(lambda: self.rename(13))
-		# self.ui.captured_name_14.returnPressed.connect(lambda: self.rename(14))
-		# self.ui.captured_name_15.returnPressed.connect(lambda: self.rename(15))
-		# self.ui.captured_name_16.returnPressed.connect(lambda: self.rename(16))
-		# self.ui.captured_name_17.returnPressed.connect(lambda: self.rename(17))
-		# self.ui.captured_name_18.returnPressed.connect(lambda: self.rename(18))
-		# self.ui.captured_name_19.returnPressed.connect(lambda: self.rename(19))
-		# self.ui.captured_name_20.returnPressed.connect(lambda: self.rename(20))
+		self.ui.tabWidget.removeTab(2)  # temp: remove render tab until implemented
 
-		self.ui.recap1.clicked.connect(lambda: self.recapture(1))
-		self.ui.recap2.clicked.connect(lambda: self.recapture(2))
-		self.ui.recap3.clicked.connect(lambda: self.recapture(3))
-		self.ui.recap4.clicked.connect(lambda: self.recapture(4))
-		self.ui.recap5.clicked.connect(lambda: self.recapture(5))
-		self.ui.recap6.clicked.connect(lambda: self.recapture(6))
-		self.ui.recap7.clicked.connect(lambda: self.recapture(7))
-		self.ui.recap8.clicked.connect(lambda: self.recapture(8))
-		self.ui.recap9.clicked.connect(lambda: self.recapture(9))
-		self.ui.recap10.clicked.connect(lambda: self.recapture(10))
-		self.ui.recap11.clicked.connect(lambda: self.recapture(11))
-		self.ui.recap12.clicked.connect(lambda: self.recapture(12))
-		self.ui.recap13.clicked.connect(lambda: self.recapture(13))
-		self.ui.recap14.clicked.connect(lambda: self.recapture(14))
-		self.ui.recap15.clicked.connect(lambda: self.recapture(15))
-		self.ui.recap16.clicked.connect(lambda: self.recapture(16))
-		self.ui.recap17.clicked.connect(lambda: self.recapture(17))
-		self.ui.recap18.clicked.connect(lambda: self.recapture(18))
-		self.ui.recap19.clicked.connect(lambda: self.recapture(19))
-		self.ui.recap20.clicked.connect(lambda: self.recapture(20))
-
-		self.ui.del1.clicked.connect(lambda: self.delete(1))
-		self.ui.del2.clicked.connect(lambda: self.delete(2))
-		self.ui.del3.clicked.connect(lambda: self.delete(3))
-		self.ui.del4.clicked.connect(lambda: self.delete(4))
-		self.ui.del5.clicked.connect(lambda: self.delete(5))
-		self.ui.del6.clicked.connect(lambda: self.delete(6))
-		self.ui.del7.clicked.connect(lambda: self.delete(7))
-		self.ui.del8.clicked.connect(lambda: self.delete(8))
-		self.ui.del9.clicked.connect(lambda: self.delete(9))
-		self.ui.del10.clicked.connect(lambda: self.delete(10))
-		self.ui.del11.clicked.connect(lambda: self.delete(11))
-		self.ui.del12.clicked.connect(lambda: self.delete(12))
-		self.ui.del13.clicked.connect(lambda: self.delete(13))
-		self.ui.del14.clicked.connect(lambda: self.delete(14))
-		self.ui.del15.clicked.connect(lambda: self.delete(15))
-		self.ui.del16.clicked.connect(lambda: self.delete(16))
-		self.ui.del17.clicked.connect(lambda: self.delete(17))
-		self.ui.del18.clicked.connect(lambda: self.delete(18))
-		self.ui.del19.clicked.connect(lambda: self.delete(19))
-		self.ui.del20.clicked.connect(lambda: self.delete(20))
-
-		self.ui.pick_swap1.clicked.connect(lambda: self.pick_swap(1))
-		self.ui.pick_swap2.clicked.connect(lambda: self.pick_swap(2))
-		self.ui.swap_nodes.clicked.connect(self.swap)
-
-		self.ui.width_spinBox.valueChanged.connect(self.width_edit)
-		self.ui.height_spinBox.valueChanged.connect(self.height_edit)
-		self.ui.path.returnPressed.connect(self.path_edit)
-		self.ui.render_button.clicked.connect(self.render)
-
-		self.init_me()
+		self.refresh_capture_ui()
 
 
 	def display(self):
@@ -196,125 +112,86 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		return self.returnValue
 
 
-	def init_me(self):
-		""" Set up scene capture nodes.
+	def refresh_capture_ui(self):
+		""" Rebuild UI to show list of captures.
 		"""
+		# Delete existing items
+		layout = self.ui.captures_verticalLayout
+		for i in reversed(range(layout.count())):
+			item = layout.itemAt(i).widget()
+			if item:
+				item.deleteLater()
+
 		# Check for existing capture data and populate list in UI
 		self.root_set = CAPTURE_SET
 		if mc.objExists(self.root_set):
 			capture_list = mc.listAttr(self.root_set, userDefined=True)
-			i = 1
 			if capture_list:
 				for attr_name in capture_list:
 					if attr_name.startswith(CAPTURE_ATTR_PREFIX):
-						capture_id = attr_name.replace(CAPTURE_ATTR_PREFIX, "")
-						self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % i).setEnabled(True)
-						lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i)
-						lineEdit.setEnabled(True)
-						lineEdit.setText(capture_id)
-						self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "recap%d" % i).setEnabled(True)
-						self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "del%d" % i).setEnabled(True)
-						i += 1 # will break after 20
+						self.add_snapshot_ui(attr_name, layout)
+			# else:
+			# 	self.ui.tabWidget.setCurrentTab(0)  # If no captures, go to setup tab
+
+
+			# layout.insertStretch(-1, 1)  # Add spacer to bottom of layout
 
 		# Create set to hold capture data
 		else:
 			self.root_set = mc.sets(n=self.root_set)
 
 
-	# def pick_root(self, slot):
-	# 	""" Pick a root node and add it to the specified slot.
-	# 	"""
-	# 	try:
-	# 		node = mc.ls(selection=True, type='transform')[-1]
-
-	# 		root_slot = "sceneCap_rootNode_%d" % slot
-	# 		lineEdit = self.ui.root_box.findChild(QtWidgets.QLineEdit, "root%d" % slot)
-	# 		lineEdit.setText(node)
-	# 		if mc.objExists(root_slot):
-	# 			mc.delete(root_slot)
-	# 		root = mc.createNode('transform', name=root_slot, parent="root_nodes")
-	# 		mc.createNode('transform', name="%s_GEOM" % node, parent=root)
-
-	# 		# untested -------------------------------------------------------
-	# 		for i in range(1, 21):
-	# 			#print("slot: %d" % i)
-	# 			slot_to_change = "sceneCap_Slot_%d" % i
-	# 			if mc.objExists(slot_to_change):
-	# 				print("changing slot: %d" % i)
-	# 				for j in range(1, 11):
-	# 					root_to_change = mc.listRelatives(slot_to_change, type='transform')[j]
-	# 					if mc.objExists(root_to_change):
-	# 						print("rootname: %s" + root_to_change)
-	# 						if root_to_change == "root%d" % slot:
-	# 							child = mc.listRelatives(root_to_change, type='transform')[0]
-	# 							print(child)
-	# 							mc.rename(child, "GEOMNAME_"+node)
-	# 		# ----------------------------------------------------------------
-
-	# 		mc.select(node)
-
-	# 	except IndexError:
-	# 		mc.warning("Nothing selected.")
-
-
-	def capture(self):
-		""" Capture a snapshot of the current state and add it to the next
-			free slot.
-			TODO: Some of this code is pretty janky and should be refactored
+	def add_snapshot_ui(self, attr_name, layout):
+		""" Add a capture item to the list by loading the template UI and
+			populating its fields.
 		"""
-		capture_id = self.ui.capture_name.text()
-		print("capture set with name: " + capture_id)
+		capture_data = json.loads(mc.getAttr(self.root_set+"."+attr_name))
+		capture_id = attr_name.replace(CAPTURE_ATTR_PREFIX, "")
 
-		enabled = 1
-		i = 0
+		ui_file = os.path.join(os.path.dirname(__file__), 'capture_item.ui')
+		ui = QtCompat.loadUi(ui_file)
 
-		# Exclude double name (?)
-		captured_names = []
-		for i in range(1, 21):
-			if self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % i).isEnabled():
-				captured_names.append(self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i).text())
+		ui.name_lineEdit.setText(capture_id)
 
-		i = 0
-		while enabled == 1:
-			i += 1
-			print("search empty slot %d" % i)
-			if not self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % i).isEnabled():
-				print("slot %d inactive" % i)
-				self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % i).setEnabled(True)
-				self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i).setEnabled(True)
-				self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "recap%d" % i).setEnabled(True)
-				self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "del%d" % i).setEnabled(True)
-				if capture_id == "":
-					capture_id = "unnamed%d" % i
-				# elif "_" in capture_id:
-				# 	capture_id = capture_id + str(i)
-				if capture_id in captured_names:
-					capture_id += "_v%d" % i
-				lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i)
-				lineEdit.setText(capture_id)
-				enabled = 0
-				self.store(i, capture_id)
-	
-			if i == 20:
-				enabled=0
-				mc.warning("No free slots.")
+		try:
+			if os.path.isfile(capture_data['snapshot']):
+				pixmap = QtGui.QPixmap(capture_data['snapshot'])
+				timestamp = capture_data['time']
+		except KeyError:
+			pixmap = QtGui.QPixmap(os.path.join(os.path.dirname(__file__), 'placeholder_thumb.png'))
+			timestamp = "unknown"
+		ui.capture_toolButton.setIcon(pixmap)
+		ui.capture_toolButton.setText(timestamp)
+
+		# Add capture UI instance to layout
+		layout.addWidget(ui)
+
+		# Connect signals & slots
+		ui.capture_toolButton.clicked.connect(lambda: self.restore(attr_name))
+		ui.name_lineEdit.returnPressed.connect(lambda: self.rename(attr_name, ui.name_lineEdit.text()))
+		# ui.name_lineEdit.textEdited.connect(lambda text: self.rename(attr_name, text))
+		ui.recap_pushButton.clicked.connect(lambda: self.store(capture_id))
+		ui.delete_pushButton.clicked.connect(lambda: self.delete(attr_name))
 
 
-	def recapture(self, slot):
-		""" Re-capture an existing snapshot.
-		"""
-		lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot)
-		capture_id = lineEdit.text()
-
-		self.store(slot, capture_id)
-
-
-	def store(self, slot, capture_id):
+	def store(self, capture_id):
 		""" Store data for a captured state.
 		"""
+		if capture_id == "":
+			mc.warning("Please give the capture a valid name.")
+			return
+
 		capture_data = {}
 		set_members = []
 
+		capture_data['time'] = time.strftime("%d/%m/%Y %H:%M")
+
+		# Take snapshot
+		snapshot_img = self.snapshot(capture_id)
+		if snapshot_img:
+			capture_data['snapshot'] = snapshot_img
+
+		# Get capture set members
 		for node in mc.sets(self.root_set, q=True):
 			set_members.append(node)
 
@@ -323,6 +200,7 @@ class SceneCaptureUI(QtWidgets.QDialog):
 				for shape in shapes:
 					set_members.append(shape)
 
+		# Store all keyable attributes of set members
 		for node in set_members:
 			capture_data[node] = {}
 
@@ -333,158 +211,205 @@ class SceneCaptureUI(QtWidgets.QDialog):
 						capture_data[node][attr] = mc.getAttr(node+"."+attr)
 					except KeyError:
 						capture_data[node] = {attr: mc.getAttr(node+"."+attr)}
-					except RuntimeError as e:
+					except (RuntimeError, ValueError) as e:
 						mc.warning(str(e))
 
-		serialized_data = json.dumps(capture_data, indent=4, sort_keys=True)
+		# Store dict as JSON and hold in custom attr
+		serialized_data = json.dumps(capture_data)
 		attr_name = CAPTURE_ATTR_PREFIX + capture_id
 		if not mc.attributeQuery(attr_name, node=self.root_set, exists=True):
 			mc.addAttr(self.root_set, ln=attr_name, dt="string")
 		mc.setAttr(self.root_set+"."+attr_name, serialized_data, type="string")
 
+		self.refresh_capture_ui()
 
-	def restore(self, slot):
+
+	def restore(self, attr_name):
 		""" Restore from a captured state.
+			TODO: Deal elegantly with the following errors when setting attributes:
+			setAttr: '<attr>' is not a simple numeric attribute.  Its values must be set with a -type flag.
+			setAttr: The attribute '<attr>' is a multi. Its values must be set individually.
 		"""
-		lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot)
-		capture_id = lineEdit.text()
-
-		attr_name = CAPTURE_ATTR_PREFIX + capture_id
 		capture_data = json.loads(mc.getAttr(self.root_set+"."+attr_name))
 
 		for node, attributes in capture_data.items():
-			for attr, value in attributes.items():
-				# print(node, attr, value)
-				try:
-					mc.setAttr(node+"."+attr, value)
-				except RuntimeError as e:
-					mc.warning(str(e))
+			# print(type(attributes) == dict)
+			if type(attributes) == dict:
+				for attr, value in attributes.items():
+					# print(node, attr, value)
+					try:
+						mc.setAttr(node+"."+attr, value)
+					except RuntimeError as e:
+						mc.warning(str(e))
 
 
-	def delete(self, slot):
+	def rename(self, attr_name, new_name):
+		""" Change the name of a capture.
+			TODO: rename snapshot image file also
+		"""
+		# new_name = self.sender().text()
+
+		if new_name == "":
+			mc.warning("Please give the capture a valid name.")
+			self.refresh_capture_ui()
+			return
+
+		new_attr_name = CAPTURE_ATTR_PREFIX + new_name
+		# print(self.root_set+"."+attr_name, new_attr_name)
+		try:
+			mc.renameAttr(self.root_set+"."+attr_name, new_attr_name)
+		except RuntimeError as e:
+			mc.warning(str(e))
+
+		self.refresh_capture_ui()
+
+
+	def delete(self, attr_name):
 		""" Delete a saved capture.
 		"""
-		lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot)
-		capture_id = lineEdit.text()
-		attr_name = CAPTURE_ATTR_PREFIX + capture_id
-
 		try:
+			capture_data = json.loads(mc.getAttr(self.root_set+"."+attr_name))
 			mc.deleteAttr(self.root_set+"."+attr_name)
+			if os.path.isfile(capture_data['snapshot']):
+				os.remove(capture_data['snapshot'])
+
+		except KeyError:
+			pass
+
 		except ValueError as e:
 			mc.warning(str(e))
 
-		lineEdit.setEnabled(False)
-		lineEdit.setText("")
-		self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % slot).setEnabled(False)
-		self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "recap%d" % slot).setEnabled(False)
-		self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "del%d" % slot).setEnabled(False)
+		self.refresh_capture_ui()
 
 
-	# def rename(self, slot):
-	# 	""" Change the name of a capture.
+	def get_snapshot_cam(self):
+		""" Return a camera to snapshot from. This will be the first camera
+			found in the capture set. If the set contains no cameras, return
+			'persp'.
+		"""
+		for node in mc.sets(self.root_set, q=True):
+			shapes = mc.listRelatives(node, shapes=True)
+			if shapes:
+				for shape in shapes:
+					if mc.nodeType(shape) == 'camera':
+						return node
+
+		return 'persp'
+
+
+	def get_snapshot_res(
+		self, 
+		max_w=SNAPSHOT_MAX_RES[0], 
+		max_h=SNAPSHOT_MAX_RES[1]):
+		""" Return the max resolution for snapshots, as a 2 element list.
+		"""
+		w = mc.getAttr("defaultResolution.w")
+		h = mc.getAttr("defaultResolution.h")
+		ratio = float(w)/float(h)
+
+		if w > max_w:
+			w = max_w
+			h = int(math.ceil(w/ratio))
+
+		if h > max_h:
+			h = max_h
+			w = int(math.ceil(h*ratio))
+
+		return [w, h]
+
+
+	def snapshot(self, name):
+		""" Take a snapshot of the current viewport panel.
+			Uses preview_maya.py module, shared with Preview.
+		"""
+		playblasts_dir = os.environ.get('IC_MAYA_PLAYBLASTS_DIR', os.path.join(mc.workspace(q=True, active=True), 'playblasts'))
+		scene_name =  os.path.splitext(mc.file(q=True, sceneName=True, shortName=True))[0]
+		output_dir = os.path.normpath(os.path.join(playblasts_dir, 'sceneCapture', scene_name))
+
+		# Create dir to store shapshots if it doesn't exist
+		if not os.path.isdir(output_dir):
+			os.makedirs(output_dir)
+
+		pb_args = {}
+		pb_args['outputDir'] = output_dir
+		pb_args['outputFile'] = name
+		pb_args['outputFormat'] = "JPEG sequence"
+		pb_args['activeView'] = "modelPanel4"  # FIX
+		pb_args['camera'] = self.get_snapshot_cam()
+		pb_args['res'] = self.get_snapshot_res()
+		pb_args['frRange'] = [mc.currentTime(q=1), mc.currentTime(q=1)]
+		pb_args['offscreen'] = True
+		pb_args['noSelect'] = True
+		pb_args['guides'] = False
+		pb_args['burnin'] = False
+		pb_args['interruptible'] = False
+
+		snapshot = preview_maya.Preview(**pb_args)
+		result = snapshot.playblast_()
+		# print(result)
+
+		if result[0] == "Completed":
+			return result[1]
+		else:
+			return None
+
+
+	# def width_edit(self):
+	# 	""" 
 	# 	"""
-	# 	slot_to_change = "sceneCap_Slot_%d" % slot
+	# 	print("width_edit")
 
-	# 	if mc.objExists(slot_to_change):
-	# 		name_to_change = mc.listRelatives(slot_to_change, type='transform')[0]
-
-	# 		if mc.objExists(name_to_change):
-	# 			print("slitti")  # ?
-	# 			# viewpoint_name = "SceneCap_" + slot_to_change.getChild(0).getName()
-	# 			# jumpViewPoint(viewpoint_name)
-	# 			# removeViewPoint(viewpoint_name)
-
-	# 			name = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % slot).text()
-	# 			print(name)
-	# 			if name == "":
-	# 				name = "unnamed%d" % slot
-	# 			mc.rename(name_to_change, name)
-	# 			# addViewPoint("SceneCap_" + name)
+	# 	# name_to_change = findNode("renderwidth").getChild(0)
+	# 	# if name_to_change.isValid():
+	# 	# 	name = self.ui.width.text()  # TODO: change to QSpinBox
+	# 	# 	name_to_change.setName(name)
 
 
-	def pick_swap(self, slot):
-		""" Pick a transform to add to the swap box entry.
-		"""
-		print("pick_swap %d" % slot)
+	# def height_edit(self):
+	# 	""" 
+	# 	"""
+	# 	print("height_edit")
 
-		node = mc.ls(selection=True, type='transform')[-1]
-
-		if mc.objExists(node):
-			lineEdit = self.ui.swap_box.findChild(QtWidgets.QLineEdit, "swap%d" % slot)
-			lineEdit.setText(node)
-
-
-	def swap(self):
-		""" Swap the positions of two objects.
-		"""
-		node1 = self.ui.swap1.text()
-		node2 = self.ui.swap2.text()
-		print("swap %s and %s" % (node1, node2))
-
-		if mc.objExists(node1) and mc.objExists(node2):
-			xformtmp = mc.createNode('transform', name="TEMP_SWAP_BUFFER", skipSelect=True)
-			mc.matchTransform(xformtmp, node1)
-			mc.matchTransform(node1, node2)
-			mc.matchTransform(node2, xformtmp)
-			mc.delete(xformtmp)
+	# 	# name_to_change = findNode("renderheight").getChild(0)
+	# 	# if name_to_change.isValid():
+	# 	# 	name = self.ui.height.text()  # TODO: change to QSpinBox
+	# 	# 	name_to_change.setName(name)
 
 
-	def width_edit(self):
-		""" 
-		"""
-		print("width_edit")
+	# def path_edit(self):
+	# 	""" 
+	# 	"""
+	# 	print("path_edit")
 
-		# name_to_change = findNode("renderwidth").getChild(0)
-		# if name_to_change.isValid():
-		# 	name = self.ui.width.text()  # TODO: change to QSpinBox
-		# 	name_to_change.setName(name)
-
-
-	def height_edit(self):
-		""" 
-		"""
-		print("height_edit")
-
-		# name_to_change = findNode("renderheight").getChild(0)
-		# if name_to_change.isValid():
-		# 	name = self.ui.height.text()  # TODO: change to QSpinBox
-		# 	name_to_change.setName(name)
+	# 	# name_to_change = findNode("path").getChild(0)
+	# 	# if name_to_change.isValid():
+	# 	# 	name = self.ui.path_lineEdit.text()
+	# 	# 	name_to_change.setName(name)
 
 
-	def path_edit(self):
-		""" 
-		"""
-		print("path_edit")
+	# def render(self):
+	# 	""" Render the selected snapshots.
+	# 	"""
+	# 	print("render")
 
-		# name_to_change = findNode("path").getChild(0)
-		# if name_to_change.isValid():
-		# 	name = self.ui.path.text()
-		# 	name_to_change.setName(name)
+	# 	width = self.ui.width_spinBox.value()
+	# 	height = self.ui.height_spinBox.value()
+	# 	path = self.ui.path_lineEdit.text()
+	# 	extension = "."+self.ui.filetype_comboBox.currentText()
 
+	# 	for i in range(1, 21):
+	# 		render_checkBox = self.ui.captured_sets_box.findChild(QtWidgets.QCheckBox, "render_set%d" % i)
+	# 		set_toolButton = self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % i)
 
-	def render(self):
-		""" Render the selected snapshots.
-		"""
-		print("render")
+	# 		if render_checkBox.checkState() == QtCore.Qt.Checked and set_toolButton.isEnabled():
+	# 			self.restore(i)
 
-		width = self.ui.width_spinBox.value()
-		height = self.ui.height_spinBox.value()
-		path = self.ui.path.text()
-		extension = "."+self.ui.filetype.currentText()
-
-		for i in range(1, 21):
-			render_checkBox = self.ui.captured_sets_box.findChild(QtWidgets.QCheckBox, "render_set%d" % i)
-			set_toolButton = self.ui.captured_sets_box.findChild(QtWidgets.QToolButton, "set%d" % i)
-
-			if render_checkBox.checkState() == QtCore.Qt.Checked and set_toolButton.isEnabled():
-				self.restore(i)
-
-				name_lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i)
-				filename = path+name_lineEdit.text()+extension
-				if extension == ".jpg":
-					print("createSnapshot(%s, %d, %d, 2, 0)" % (filename, width, height))
-				else:
-					print("createSnapshot(%s, %d, %d, 2, 1)" % (filename, width, height))
+	# 			name_lineEdit = self.ui.captured_sets_box.findChild(QtWidgets.QLineEdit, "captured_name_%d" % i)
+	# 			filename = path+name_lineEdit.text()+extension
+	# 			if extension == ".jpg":
+	# 				print("createSnapshot(%s, %d, %d, 2, 0)" % (filename, width, height))
+	# 			else:
+	# 				print("createSnapshot(%s, %d, %d, 2, 1)" % (filename, width, height))
 
 # ----------------------------------------------------------------------------
 # End of main dialog class
@@ -531,8 +456,7 @@ def run_maya(session=None, dock=False, **kwargs):
 				label=cfg['window_title'], 
 				area=dock, 
 				content=cfg['window_object'], 
-				allowedArea=allowed_areas
-			)
+				allowedArea=allowed_areas)
 		else:
 			sceneCaptureUI.display(**kwargs)  # Show the UI
 
