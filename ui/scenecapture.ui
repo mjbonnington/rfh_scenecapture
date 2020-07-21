@@ -120,10 +120,6 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             <property name="text">
              <string>Copy transform</string>
             </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>copy.png</normaloff>copy.png</iconset>
-            </property>
             <property name="iconSize">
              <size>
               <width>24</width>
@@ -140,10 +136,6 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             <property name="text">
              <string>Paste transform</string>
             </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>paste.png</normaloff>paste.png</iconset>
-            </property>
             <property name="iconSize">
              <size>
               <width>24</width>
@@ -159,10 +151,6 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             </property>
             <property name="text">
              <string>Swap transforms</string>
-            </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>swap.png</normaloff>swap.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -187,7 +175,7 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
           <item row="0" column="0">
            <widget class="QPushButton" name="import_pushButton">
             <property name="toolTip">
-             <string>Copy transform from last selected object</string>
+             <string>Import capture data from JSON file</string>
             </property>
             <property name="text">
              <string>Import JSON...</string>
@@ -203,7 +191,7 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
           <item row="0" column="1">
            <widget class="QPushButton" name="export_pushButton">
             <property name="toolTip">
-             <string>Paste transform to selected object(s)</string>
+             <string>Export capture data to JSON file</string>
             </property>
             <property name="text">
              <string>Export JSON...</string>
@@ -219,7 +207,7 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
           <item row="1" column="0">
            <widget class="QPushButton" name="delData_pushButton">
             <property name="toolTip">
-             <string>Swap positions of two objects</string>
+             <string>Delete all external capture data for this scene</string>
             </property>
             <property name="text">
              <string>Delete saved data</string>
@@ -300,7 +288,7 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="capture_button">
+           <widget class="QPushButton" name="capture_pushButton">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
               <horstretch>0</horstretch>

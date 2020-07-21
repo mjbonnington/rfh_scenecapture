@@ -9,7 +9,7 @@
 # Adapted from existing VRED tool.
 
 '''
-Run with the following code, or add to shelf
+Run with the following code, or add to shelf:
 
 from rfh_scenecapture import scenecapture_maya
 scenecapture_maya.run_maya()
@@ -20,6 +20,7 @@ import json
 import math
 import os
 import re
+import shutil
 import sys
 import time
 #from pkg_resources import resource_filename
@@ -37,9 +38,9 @@ from . import preview_maya
 # Configuration
 # ----------------------------------------------------------------------------
 
-__version__ = "0.4.5"
+__version__ = "0.4.6"
 
-CAPTURE_SET = "sceneCapture_set1"  # Currently hard-coded
+CAPTURE_SET = "sceneCapture_set1"
 CAPTURE_ATTR_PREFIX = "captureData_"
 SNAPSHOT_MAX_RES = [1024, 1024]
 
@@ -83,7 +84,7 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		self.setProperty("saveWindowPref", True)
 
 		# Set icons
-		self.ui.capture_button.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'capture.png')))
+		self.ui.capture_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'capture.png')))
 		self.ui.xformCopy_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'copy.png')))
 		self.ui.xformPaste_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'paste.png')))
 		self.ui.xformSwap_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'swap.png')))
@@ -92,14 +93,13 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		self.ui.delData_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'delete.png')))
 
 		# Connect signals & slots
-		self.ui.capture_button.clicked.connect(lambda: self.store(self.ui.captureName_lineEdit.text(), force=False))
-
+		self.ui.capture_pushButton.clicked.connect(lambda: self.store(self.ui.captureName_lineEdit.text(), force=False))
 		self.ui.xformCopy_pushButton.clicked.connect(mjb_transform_ops.copy_transform)
 		self.ui.xformPaste_pushButton.clicked.connect(mjb_transform_ops.paste_transform)
 		self.ui.xformSwap_pushButton.clicked.connect(mjb_transform_ops.swap_transforms)
-
 		self.ui.import_pushButton.clicked.connect(self.import_json)
 		self.ui.export_pushButton.clicked.connect(self.export_json)
+		self.ui.delData_pushButton.clicked.connect(self.delete_data)
 
 		# self.ui.width_spinBox.valueChanged.connect(self.width_edit)
 		# self.ui.height_spinBox.valueChanged.connect(self.height_edit)
@@ -110,11 +110,13 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		alphanumeric_validator = QtGui.QRegExpValidator(QtCore.QRegExp(r'[a-zA-Z_][a-zA-Z0-9_]*'), self.ui.captureName_lineEdit)
 		self.ui.captureName_lineEdit.setValidator(alphanumeric_validator)
 
-		self.root_set = CAPTURE_SET
-		self.ui.tabWidget.removeTab(2)  # temp: remove render tab until implemented
-		self.ui.data_groupBox.setEnabled(False)  # temp: until implemented
+		# General initialisation
+		self.root_set = CAPTURE_SET  # currently hard-coded
+		if not mc.objExists(self.root_set):
+			self.root_set = mc.sets(n=self.root_set)
 		self.ui.set_comboBox.addItem(self.root_set)
-		self.ui.set_comboBox.setEnabled(False)
+		self.ui.tabWidget.removeTab(2)  # temp: remove render tab until implemented
+		#self.ui.data_groupBox.setEnabled(False)  # temp: disable until implemented
 		self.ui.snapCam_comboBox.addItems(self.get_snapshot_cam())
 
 		self.refresh_capture_ui()
@@ -201,32 +203,34 @@ class SceneCaptureUI(QtWidgets.QDialog):
 			return
 
 		if (capture_id in self.capture_list()) and (not force):
-			if 'No' == mc.confirmDialog(
-				title='Capture Exists', 
-				message='A capture named %s already exists. Do you want to overwrite it?' % capture_id, 
-				button=['Yes', 'No'], 
-				defaultButton='Yes', 
-				cancelButton='No'):
+			if self.confirm_overwite(capture_id) == 'No':
 				return
 
-		capture_data = {}
 		set_members = []
+		capture_data = {}
 
+		# Get capture set members
+		set_contents = mc.sets(self.root_set, q=True)
+		if set_contents:
+			for node in set_contents:
+				set_members.append(node)
+
+				shapes = mc.listRelatives(node, shapes=True, fullPath=True)
+				if shapes:
+					for shape in shapes:
+						set_members.append(shape)
+
+		else:
+			mc.warning("Set '%s' has no contents to capture." % self.root_set)
+			return
+
+		# Get current time
 		capture_data['time'] = time.strftime("%d/%m/%Y %H:%M")
 
 		# Take snapshot
 		snapshot_img = self.snapshot(capture_id)
 		if snapshot_img:
 			capture_data['snapshot'] = snapshot_img
-
-		# Get capture set members
-		for node in mc.sets(self.root_set, q=True):
-			set_members.append(node)
-
-			shapes = mc.listRelatives(node, shapes=True, fullPath=True)
-			if shapes:
-				for shape in shapes:
-					set_members.append(shape)
 
 		# Store all keyable attributes of set members
 		for node in set_members:
@@ -242,14 +246,18 @@ class SceneCaptureUI(QtWidgets.QDialog):
 					except (RuntimeError, ValueError) as e:
 						mc.warning(str(e))
 
-		# Store dict as JSON and hold in custom attr
+		self.store_attr(capture_id, capture_data)
+		self.refresh_capture_ui()
+
+
+	def store_attr(self, capture_id, capture_data):
+		""" Store dict as JSON and hold in custom attr.
+		"""
 		serialized_data = json.dumps(capture_data)
 		attr_name = CAPTURE_ATTR_PREFIX + capture_id
 		if not mc.attributeQuery(attr_name, node=self.root_set, exists=True):
 			mc.addAttr(self.root_set, ln=attr_name, dt="string")
 		mc.setAttr(self.root_set+"."+attr_name, serialized_data, type="string")
-
-		self.refresh_capture_ui()
 
 
 	def restore(self, attr_name):
@@ -321,7 +329,7 @@ class SceneCaptureUI(QtWidgets.QDialog):
 				if attr_name.startswith(CAPTURE_ATTR_PREFIX):
 					id_list.append(attr_name.replace(CAPTURE_ATTR_PREFIX, ""))
 
-		print(id_list)
+		# print(id_list)
 		return id_list
 
 
@@ -332,17 +340,18 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		"""
 		cameras = []
 
-		for node in mc.sets(self.root_set, q=True):
-			shapes = mc.listRelatives(node, shapes=True)
-			if shapes:
-				for shape in shapes:
-					if mc.nodeType(shape) == 'camera':
-						cameras.append(node)
+		set_contents = mc.sets(self.root_set, q=True)
+		if set_contents:
+			for node in set_contents:
+				shapes = mc.listRelatives(node, shapes=True)
+				if shapes:
+					for shape in shapes:
+						if mc.nodeType(shape) == 'camera':
+							cameras.append(node)
 
 		if not cameras:
 			cameras.append('persp')
 
-		# cameras.reverse()
 		cameras.sort()
 		# print(cameras)
 		return cameras
@@ -383,7 +392,7 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		if not os.path.isdir(output_dir):
 			os.makedirs(output_dir)
 
-		print(output_dir)
+		# print(output_dir)
 		return(output_dir)
 
 
@@ -418,29 +427,75 @@ class SceneCaptureUI(QtWidgets.QDialog):
 	def import_json(self):
 		""" Import capture data from JSON file.
 		"""
-		result = mc.fileDialog2(
-			caption="Import JSON", 
-			okCaption="Import", 
-			fileMode=0, 
-			fileFilter="JSON Files (*.json)", 
-			startingDirectory=self.get_output_dir(), 
-			dialogStyle=2)
+		startingDir = self.get_output_dir()
+		fileFilter = "JSON Files (*.json)"
+		fileName = QtWidgets.QFileDialog.getOpenFileName(
+			self, self.tr("Import JSON"), startingDir, fileFilter)
 
-		print(result)
+		try:
+			result = fileName[0]
+		except IndexError:
+			result = None
+
+		if result:
+			with open(result, 'r') as f:
+				import_data = json.load(f)
+
+			for capture_id in import_data.keys():
+				if capture_id not in self.capture_list():
+					self.store_attr(capture_id, import_data[capture_id])
+				else:
+					if self.confirm_overwite(capture_id) == 'Yes':
+						self.store_attr(capture_id, import_data[capture_id])
+
+			self.refresh_capture_ui()
 
 
 	def export_json(self):
 		""" Export capture data to JSON file.
 		"""
-		result = mc.fileDialog2(
-			caption="Export JSON", 
-			okCaption="Export", 
-			fileMode=1, 
-			fileFilter="JSON Files (*.json)", 
-			startingDirectory=self.get_output_dir(), 
-			dialogStyle=2)
+		startingDir = self.get_output_dir()
+		fileFilter = "JSON Files (*.json)"
+		fileName = QtWidgets.QFileDialog.getSaveFileName(
+			self, self.tr("Export JSON"), startingDir, fileFilter)
 
-		print(result)
+		try:
+			result = fileName[0]
+		except IndexError:
+			result = None
+
+		if result:
+			export_data = {}
+			for capture_id in self.capture_list():
+				attr_name = CAPTURE_ATTR_PREFIX + capture_id
+				export_data[capture_id] = json.loads(mc.getAttr(self.root_set+"."+attr_name))
+
+			with open(result, 'w') as f:
+				json.dump(export_data, f, indent=4, sort_keys=True)
+
+
+	def delete_data(self):
+		""" Delete external save data (snapshots, exported JSON data, etc.)
+		"""
+		data_dir = self.get_output_dir()
+		if 'Yes' == mc.confirmDialog(
+			title='Delete Data', 
+			message='The following folder and its contents will be deleted:\n%s\nAre you sure?' % data_dir, 
+			button=['Yes', 'No'], 
+			defaultButton='Yes', 
+			cancelButton='No'):
+			shutil.rmtree(data_dir)
+
+
+	def confirm_overwite(self, capture_id):
+		""" Confirm overwite of existing capture.
+		"""
+		return mc.confirmDialog(
+			title='Capture Exists', 
+			message='A capture named %s already exists. Do you want to overwrite it?' % capture_id, 
+			button=['Yes', 'No'], 
+			defaultButton='Yes', 
+			cancelButton='No')
 
 
 	# def width_edit(self):
