@@ -25,6 +25,3 @@ Thumbs.db
 
 #IDE stuff
 .idea
-
-#Icarus config dir
-/config*

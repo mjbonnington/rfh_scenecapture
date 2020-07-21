@@ -29,6 +29,7 @@ import maya.cmds as mc
 from Qt import QtCompat, QtCore, QtGui, QtWidgets
 
 # Import custom modules
+from . import mjb_transform_ops
 from . import preview_maya
 
 
@@ -36,9 +37,9 @@ from . import preview_maya
 # Configuration
 # ----------------------------------------------------------------------------
 
-__version__ = "0.4.3"
+__version__ = "0.4.5"
 
-CAPTURE_SET = "sceneCapture_set1"
+CAPTURE_SET = "sceneCapture_set1"  # Currently hard-coded
 CAPTURE_ATTR_PREFIX = "captureData_"
 SNAPSHOT_MAX_RES = [1024, 1024]
 
@@ -49,7 +50,7 @@ cfg['window_title'] = "RFH Scene Capture v" + __version__
 cfg['window_object'] = "sceneCaptureUI"
 
 # Set the UI and the stylesheet
-cfg['ui_file'] = os.path.join(os.path.dirname(__file__), 'scenecapture.ui')
+cfg['ui_file'] = os.path.join(os.path.dirname(__file__), 'ui', 'scenecapture.ui')
 
 # Other options
 cfg['dockable'] = True
@@ -82,10 +83,23 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		self.setProperty("saveWindowPref", True)
 
 		# Set icons
-		# self.ui.capture_button.setIcon(self.iconSet('capture.svg'))
+		self.ui.capture_button.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'capture.png')))
+		self.ui.xformCopy_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'copy.png')))
+		self.ui.xformPaste_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'paste.png')))
+		self.ui.xformSwap_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'swap.png')))
+		self.ui.import_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'import.png')))
+		self.ui.export_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'export.png')))
+		self.ui.delData_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'delete.png')))
 
 		# Connect signals & slots
-		self.ui.capture_button.clicked.connect(lambda: self.store(self.ui.captureName_lineEdit.text()))
+		self.ui.capture_button.clicked.connect(lambda: self.store(self.ui.captureName_lineEdit.text(), force=False))
+
+		self.ui.xformCopy_pushButton.clicked.connect(mjb_transform_ops.copy_transform)
+		self.ui.xformPaste_pushButton.clicked.connect(mjb_transform_ops.paste_transform)
+		self.ui.xformSwap_pushButton.clicked.connect(mjb_transform_ops.swap_transforms)
+
+		self.ui.import_pushButton.clicked.connect(self.import_json)
+		self.ui.export_pushButton.clicked.connect(self.export_json)
 
 		# self.ui.width_spinBox.valueChanged.connect(self.width_edit)
 		# self.ui.height_spinBox.valueChanged.connect(self.height_edit)
@@ -96,7 +110,12 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		alphanumeric_validator = QtGui.QRegExpValidator(QtCore.QRegExp(r'[a-zA-Z_][a-zA-Z0-9_]*'), self.ui.captureName_lineEdit)
 		self.ui.captureName_lineEdit.setValidator(alphanumeric_validator)
 
+		self.root_set = CAPTURE_SET
 		self.ui.tabWidget.removeTab(2)  # temp: remove render tab until implemented
+		self.ui.data_groupBox.setEnabled(False)  # temp: until implemented
+		self.ui.set_comboBox.addItem(self.root_set)
+		self.ui.set_comboBox.setEnabled(False)
+		self.ui.snapCam_comboBox.addItems(self.get_snapshot_cam())
 
 		self.refresh_capture_ui()
 
@@ -123,7 +142,7 @@ class SceneCaptureUI(QtWidgets.QDialog):
 				item.deleteLater()
 
 		# Check for existing capture data and populate list in UI
-		self.root_set = CAPTURE_SET
+		self.root_set = self.ui.set_comboBox.currentText() #CAPTURE_SET
 		if mc.objExists(self.root_set):
 			capture_list = mc.listAttr(self.root_set, userDefined=True)
 			if capture_list:
@@ -148,18 +167,18 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		capture_data = json.loads(mc.getAttr(self.root_set+"."+attr_name))
 		capture_id = attr_name.replace(CAPTURE_ATTR_PREFIX, "")
 
-		ui_file = os.path.join(os.path.dirname(__file__), 'capture_item.ui')
+		ui_file = os.path.join(os.path.dirname(__file__), 'ui', 'capture_item.ui')
 		ui = QtCompat.loadUi(ui_file)
 
 		ui.name_lineEdit.setText(capture_id)
 
-		try:
-			if os.path.isfile(capture_data['snapshot']):
-				pixmap = QtGui.QPixmap(capture_data['snapshot'])
-				timestamp = capture_data['time']
-		except KeyError:
-			pixmap = QtGui.QPixmap(os.path.join(os.path.dirname(__file__), 'placeholder_thumb.png'))
-			timestamp = "unknown"
+		default_thumb = os.path.join(os.path.dirname(__file__), 'ui', 'placeholder_thumb.png')
+		thumb = capture_data.get('snapshot', default_thumb)
+		if os.path.isfile(thumb):
+			pixmap = QtGui.QPixmap(thumb)
+		else:
+			pixmap = QtGui.QPixmap(default_thumb)
+		timestamp = capture_data.get('time', 'unknown')
 		ui.capture_toolButton.setIcon(pixmap)
 		ui.capture_toolButton.setText(timestamp)
 
@@ -170,16 +189,25 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		ui.capture_toolButton.clicked.connect(lambda: self.restore(attr_name))
 		ui.name_lineEdit.returnPressed.connect(lambda: self.rename(attr_name, ui.name_lineEdit.text()))
 		# ui.name_lineEdit.textEdited.connect(lambda text: self.rename(attr_name, text))
-		ui.recap_pushButton.clicked.connect(lambda: self.store(capture_id))
+		ui.recap_pushButton.clicked.connect(lambda: self.store(capture_id, force=True))
 		ui.delete_pushButton.clicked.connect(lambda: self.delete(attr_name))
 
 
-	def store(self, capture_id):
+	def store(self, capture_id, force=False):
 		""" Store data for a captured state.
 		"""
 		if capture_id == "":
 			mc.warning("Please give the capture a valid name.")
 			return
+
+		if (capture_id in self.capture_list()) and (not force):
+			if 'No' == mc.confirmDialog(
+				title='Capture Exists', 
+				message='A capture named %s already exists. Do you want to overwrite it?' % capture_id, 
+				button=['Yes', 'No'], 
+				defaultButton='Yes', 
+				cancelButton='No'):
+				return
 
 		capture_data = {}
 		set_members = []
@@ -282,19 +310,42 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		self.refresh_capture_ui()
 
 
+	def capture_list(self):
+		""" Return a list with the names of existing captures.
+		"""
+		id_list = []
+
+		capture_list = mc.listAttr(self.root_set, userDefined=True)
+		if capture_list:
+			for attr_name in capture_list:
+				if attr_name.startswith(CAPTURE_ATTR_PREFIX):
+					id_list.append(attr_name.replace(CAPTURE_ATTR_PREFIX, ""))
+
+		print(id_list)
+		return id_list
+
+
 	def get_snapshot_cam(self):
 		""" Return a camera to snapshot from. This will be the first camera
 			found in the capture set. If the set contains no cameras, return
 			'persp'.
 		"""
+		cameras = []
+
 		for node in mc.sets(self.root_set, q=True):
 			shapes = mc.listRelatives(node, shapes=True)
 			if shapes:
 				for shape in shapes:
 					if mc.nodeType(shape) == 'camera':
-						return node
+						cameras.append(node)
 
-		return 'persp'
+		if not cameras:
+			cameras.append('persp')
+
+		# cameras.reverse()
+		cameras.sort()
+		# print(cameras)
+		return cameras
 
 
 	def get_snapshot_res(
@@ -315,27 +366,37 @@ class SceneCaptureUI(QtWidgets.QDialog):
 			h = max_h
 			w = int(math.ceil(h*ratio))
 
+		print(w, h)
 		return [w, h]
 
 
-	def snapshot(self, name):
-		""" Take a snapshot of the current viewport panel.
-			Uses preview_maya.py module, shared with Preview.
+	def get_output_dir(self):
+		""" Return the output directory for capture snapshots and data.
 		"""
-		playblasts_dir = os.environ.get('IC_MAYA_PLAYBLASTS_DIR', os.path.join(mc.workspace(q=True, active=True), 'playblasts'))
+		playblasts_dir = os.getenv('IC_MAYA_PLAYBLASTS_DIR', os.path.join(mc.workspace(q=True, active=True), 'playblasts'))
 		scene_name =  os.path.splitext(mc.file(q=True, sceneName=True, shortName=True))[0]
+		if not scene_name:
+			scene_name = 'untitled'
 		output_dir = os.path.normpath(os.path.join(playblasts_dir, 'sceneCapture', scene_name))
 
 		# Create dir to store shapshots if it doesn't exist
 		if not os.path.isdir(output_dir):
 			os.makedirs(output_dir)
 
+		print(output_dir)
+		return(output_dir)
+
+
+	def snapshot(self, name):
+		""" Take a snapshot of the current viewport panel.
+			Uses preview_maya.py module, shared with Preview.
+		"""
 		pb_args = {}
-		pb_args['outputDir'] = output_dir
+		pb_args['outputDir'] = self.get_output_dir()
 		pb_args['outputFile'] = name
 		pb_args['outputFormat'] = "JPEG sequence"
 		pb_args['activeView'] = "modelPanel4"  # FIX
-		pb_args['camera'] = self.get_snapshot_cam()
+		pb_args['camera'] = self.ui.snapCam_comboBox.currentText() #self.get_snapshot_cam()
 		pb_args['res'] = self.get_snapshot_res()
 		pb_args['frRange'] = [mc.currentTime(q=1), mc.currentTime(q=1)]
 		pb_args['offscreen'] = True
@@ -352,6 +413,34 @@ class SceneCaptureUI(QtWidgets.QDialog):
 			return result[1]
 		else:
 			return None
+
+
+	def import_json(self):
+		""" Import capture data from JSON file.
+		"""
+		result = mc.fileDialog2(
+			caption="Import JSON", 
+			okCaption="Import", 
+			fileMode=0, 
+			fileFilter="JSON Files (*.json)", 
+			startingDirectory=self.get_output_dir(), 
+			dialogStyle=2)
+
+		print(result)
+
+
+	def export_json(self):
+		""" Export capture data to JSON file.
+		"""
+		result = mc.fileDialog2(
+			caption="Export JSON", 
+			okCaption="Export", 
+			fileMode=1, 
+			fileFilter="JSON Files (*.json)", 
+			startingDirectory=self.get_output_dir(), 
+			dialogStyle=2)
+
+		print(result)
 
 
 	# def width_edit(self):

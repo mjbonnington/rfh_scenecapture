@@ -153,12 +153,12 @@ class Preview():
 
 	# Header
 	def hudHeader(self):
-		return os.environ.get('IC_VENDORINITIALS', "")
+		return os.getenv('PREVIEW_VENDORINITIALS', "")
 
 	# Current project
 	def hudJob(self):
-		job = os.environ.get('PREVIEW_JOB', "")
-		shot = os.environ.get('PREVIEW_SHOT', "")
+		job = os.getenv('PREVIEW_JOB', "")
+		shot = os.getenv('PREVIEW_SHOT', "")
 		return '%s - %s' % (job, shot)
 
 	# Maya scene name
@@ -188,7 +188,7 @@ class Preview():
 
 	# Artist
 	def hudArtist(self):
-		return os.environ.get('IC_USERNAME', "")
+		return os.getenv('PREVIEW_USERNAME', "")
 
 	# Current frame
 	def hudFrame(self):

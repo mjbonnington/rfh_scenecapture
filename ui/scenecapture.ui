@@ -60,9 +60,11 @@
              <bool>true</bool>
             </property>
             <property name="plainText">
-             <string>When this script is run for the first time, a set will be created containing the current selection. Objects can be added or removed from the set to change what will be captured. All keyable attributes of any transform or shape nodes will be captured.
+             <string>This tool captures snapshots which store the state of certain nodes in the scene.
 
-An snapshot image will of the capture will be stored in the playblasts/sceneCapture/&lt;Scene&gt; subfolder of the current Maya project. This snapshot will by default use the first camera found in the set. This can be overridden from the options below. The image dimensions set in the Render Globals will be used.</string>
+On the first run, a set named 'sceneCapture_set1' will be created containing the current selection. Choose what to capture by adding or removing objects from this set. All keyable attributes of any transform or shape nodes will be captured.
+
+An thumbnail image preview of the capture will be stored in the 'playblasts/sceneCapture/&lt;Scene&gt;' subfolder of the current Maya project. If there is a camera in the set, this will be used for snaphots. If there is more than one camera, it can be selected from the options below. If the set contains no cameras, the snapshot cam will default to 'persp'. The image dimensions set in the Render Globals will be used.</string>
             </property>
            </widget>
           </item>
@@ -75,15 +77,160 @@ An snapshot image will of the capture will be stored in the playblasts/sceneCapt
           <string>Options</string>
          </property>
          <layout class="QFormLayout" name="formLayout">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+          </property>
           <item row="0" column="0">
+           <widget class="QLabel" name="set_label">
+            <property name="text">
+             <string>Capture set:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="set_comboBox"/>
+          </item>
+          <item row="1" column="0">
            <widget class="QLabel" name="snapCam_label">
             <property name="text">
              <string>Snapshot camera:</string>
             </property>
            </widget>
           </item>
-          <item row="0" column="1">
+          <item row="1" column="1">
            <widget class="QComboBox" name="snapCam_comboBox"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="tools_groupBox">
+         <property name="title">
+          <string>Tools</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QPushButton" name="xformCopy_pushButton">
+            <property name="toolTip">
+             <string>Copy transform from last selected object</string>
+            </property>
+            <property name="text">
+             <string>Copy transform</string>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>copy.png</normaloff>copy.png</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QPushButton" name="xformPaste_pushButton">
+            <property name="toolTip">
+             <string>Paste transform to selected object(s)</string>
+            </property>
+            <property name="text">
+             <string>Paste transform</string>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>paste.png</normaloff>paste.png</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QPushButton" name="xformSwap_pushButton">
+            <property name="toolTip">
+             <string>Swap positions of two objects</string>
+            </property>
+            <property name="text">
+             <string>Swap transforms</string>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>swap.png</normaloff>swap.png</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="data_groupBox">
+         <property name="title">
+          <string>Data management</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_2">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QPushButton" name="import_pushButton">
+            <property name="toolTip">
+             <string>Copy transform from last selected object</string>
+            </property>
+            <property name="text">
+             <string>Import JSON...</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QPushButton" name="export_pushButton">
+            <property name="toolTip">
+             <string>Paste transform to selected object(s)</string>
+            </property>
+            <property name="text">
+             <string>Export JSON...</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QPushButton" name="delData_pushButton">
+            <property name="toolTip">
+             <string>Swap positions of two objects</string>
+            </property>
+            <property name="text">
+             <string>Delete saved data</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
           </item>
          </layout>
         </widget>
@@ -123,7 +270,7 @@ An snapshot image will of the capture will be stored in the playblasts/sceneCapt
           </sizepolicy>
          </property>
          <property name="title">
-          <string>New Capture - give each capture a unique name</string>
+          <string>Create new capture</string>
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout_3">
           <property name="spacing">
