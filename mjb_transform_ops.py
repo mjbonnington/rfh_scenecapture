@@ -4,7 +4,7 @@ t_dict = {
 	'translation': [0.0, 0.0, 0.0], 
 	'rotation': [0.0, 0.0, 0.0], 
 	'scale': [1.0, 1.0, 1.0]
-	}
+}
 
 def copy_transform():
 	last_selection = mc.ls(selection=True, transforms=True)[-1]
@@ -42,6 +42,7 @@ def swap_transforms():
 	else:
 		mc.warning("Please select two transforms.")
 
+# ----------------------------------------------------------------------------
 
 shelfCommandMEL = '''
 	shelfButton

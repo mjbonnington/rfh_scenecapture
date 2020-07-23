@@ -1,14 +1,14 @@
 #!/usr/bin/python
 
-# scenecapture_maya.py
-#
-# Mike Bonnington <michael@recomfarmhouse.com>
-# (c) 2020 Recom Farmhouse
-#
-# A tool for capturing object and camera layouts for stills.
-# Adapted from existing VRED tool.
-
 '''
+scenecapture_maya.py
+
+Mike Bonnington <michael@recomfarmhouse.com>
+(c) 2020 Recom Farmhouse
+
+A tool for capturing object and camera layouts for stills.
+Adapted from existing VRED tool.
+
 Run with the following code, or add to shelf:
 
 from rfh_scenecapture import scenecapture_maya
@@ -23,13 +23,14 @@ import re
 import shutil
 import sys
 import time
-#from pkg_resources import resource_filename
 
 import maya.cmds as mc
+import maya.mel as mel
 
 from Qt import QtCompat, QtCore, QtGui, QtWidgets
 
 # Import custom modules
+# from . import icons_rc
 from . import mjb_transform_ops
 from . import preview_maya
 
@@ -38,7 +39,7 @@ from . import preview_maya
 # Configuration
 # ----------------------------------------------------------------------------
 
-__version__ = "0.4.6"
+__version__ = "0.4.7"
 
 CAPTURE_SET = "sceneCapture_set1"
 CAPTURE_ATTR_PREFIX = "captureData_"
@@ -84,7 +85,7 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		self.setProperty("saveWindowPref", True)
 
 		# Set icons
-		self.ui.capture_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'capture.png')))
+		self.ui.capture_toolButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'capture.png')))
 		self.ui.xformCopy_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'copy.png')))
 		self.ui.xformPaste_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'paste.png')))
 		self.ui.xformSwap_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'swap.png')))
@@ -93,7 +94,9 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		self.ui.delData_pushButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'delete.png')))
 
 		# Connect signals & slots
-		self.ui.capture_pushButton.clicked.connect(lambda: self.store(self.ui.captureName_lineEdit.text(), force=False))
+		self.ui.capture_toolButton.clicked.connect(lambda: self.store(self.ui.captureName_lineEdit.text(), force=False))
+		self.ui.captureName_lineEdit.returnPressed.connect(lambda: self.store(self.ui.captureName_lineEdit.text(), force=False))
+		self.ui.setEditor_pushButton.clicked.connect(lambda: mel.eval("SetEditor;"))
 		self.ui.xformCopy_pushButton.clicked.connect(mjb_transform_ops.copy_transform)
 		self.ui.xformPaste_pushButton.clicked.connect(mjb_transform_ops.paste_transform)
 		self.ui.xformSwap_pushButton.clicked.connect(mjb_transform_ops.swap_transforms)
@@ -174,6 +177,12 @@ class SceneCaptureUI(QtWidgets.QDialog):
 
 		ui.name_lineEdit.setText(capture_id)
 
+		# Set icons
+		ui.recap_toolButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'capture.png')))
+		ui.delete_toolButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'delete.png')))
+		ui.render_toolButton.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), 'ui', 'render.png')))
+		ui.render_toolButton.setEnabled(False)  # temp until implemented
+
 		default_thumb = os.path.join(os.path.dirname(__file__), 'ui', 'placeholder_thumb.png')
 		thumb = capture_data.get('snapshot', default_thumb)
 		if os.path.isfile(thumb):
@@ -191,8 +200,8 @@ class SceneCaptureUI(QtWidgets.QDialog):
 		ui.capture_toolButton.clicked.connect(lambda: self.restore(attr_name))
 		ui.name_lineEdit.returnPressed.connect(lambda: self.rename(attr_name, ui.name_lineEdit.text()))
 		# ui.name_lineEdit.textEdited.connect(lambda text: self.rename(attr_name, text))
-		ui.recap_pushButton.clicked.connect(lambda: self.store(capture_id, force=True))
-		ui.delete_pushButton.clicked.connect(lambda: self.delete(attr_name))
+		ui.recap_toolButton.clicked.connect(lambda: self.store(capture_id, force=True))
+		ui.delete_toolButton.clicked.connect(lambda: self.delete(attr_name))
 
 
 	def store(self, capture_id, force=False):
@@ -244,14 +253,16 @@ class SceneCaptureUI(QtWidgets.QDialog):
 					except KeyError:
 						capture_data[node] = {attr: mc.getAttr(node+"."+attr)}
 					except (RuntimeError, ValueError) as e:
-						mc.warning(str(e))
+						if not self.suppress_warnings():
+							mc.warning(str(e))
 
 		self.store_attr(capture_id, capture_data)
 		self.refresh_capture_ui()
 
 
 	def store_attr(self, capture_id, capture_data):
-		""" Store dict as JSON and hold in custom attr.
+		""" Serialize capture data dictionary as JSON and store in custom
+			attribute.
 		"""
 		serialized_data = json.dumps(capture_data)
 		attr_name = CAPTURE_ATTR_PREFIX + capture_id
@@ -276,7 +287,8 @@ class SceneCaptureUI(QtWidgets.QDialog):
 					try:
 						mc.setAttr(node+"."+attr, value)
 					except RuntimeError as e:
-						mc.warning(str(e))
+						if not self.suppress_warnings():
+							mc.warning(str(e))
 
 
 	def rename(self, attr_name, new_name):
@@ -316,6 +328,16 @@ class SceneCaptureUI(QtWidgets.QDialog):
 			mc.warning(str(e))
 
 		self.refresh_capture_ui()
+
+
+	def suppress_warnings(self):
+		""" Get the value the 'Suppress warnings' checkbox and return a
+			Boolean value.
+		"""
+		if self.ui.noWarnings_checkBox.checkState() == QtCore.Qt.Checked:
+			return True
+		else:
+			return False
 
 
 	def capture_list(self):
@@ -375,7 +397,7 @@ class SceneCaptureUI(QtWidgets.QDialog):
 			h = max_h
 			w = int(math.ceil(h*ratio))
 
-		print(w, h)
+		# print(w, h)
 		return [w, h]
 
 
@@ -485,6 +507,7 @@ class SceneCaptureUI(QtWidgets.QDialog):
 			defaultButton='Yes', 
 			cancelButton='No'):
 			shutil.rmtree(data_dir)
+			self.refresh_capture_ui()
 
 
 	def confirm_overwite(self, capture_id):

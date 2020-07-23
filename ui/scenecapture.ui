@@ -13,6 +13,12 @@
   <property name="windowTitle">
    <string>Scene Capture</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">QWidget[bgoverride=&quot;true&quot;] {
+	background-color: #333;
+}
+</string>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="margin">
     <number>0</number>
@@ -64,7 +70,7 @@
 
 On the first run, a set named 'sceneCapture_set1' will be created containing the current selection. Choose what to capture by adding or removing objects from this set. All keyable attributes of any transform or shape nodes will be captured.
 
-An thumbnail image preview of the capture will be stored in the 'playblasts/sceneCapture/&lt;Scene&gt;' subfolder of the current Maya project. If there is a camera in the set, this will be used for snaphots. If there is more than one camera, it can be selected from the options below. If the set contains no cameras, the snapshot cam will default to 'persp'. The image dimensions set in the Render Globals will be used.</string>
+A thumbnail image preview of the capture will be stored in the 'playblasts/sceneCapture/&lt;Scene&gt;' subfolder of the current Maya project. If there is a camera in the set, this will be used for snaphots. If there is more than one camera, it can be selected from the options below. If the set contains no cameras, the snapshot cam will default to 'persp'. The image dimensions set in the Render Globals will be used.</string>
             </property>
            </widget>
           </item>
@@ -100,6 +106,32 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
           <item row="1" column="1">
            <widget class="QComboBox" name="snapCam_comboBox"/>
           </item>
+          <item row="3" column="1">
+           <widget class="QCheckBox" name="noWarnings_checkBox">
+            <property name="text">
+             <string>Suppress warnings</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QPushButton" name="setEditor_pushButton">
+            <property name="toolTip">
+             <string>Copy transform from last selected object</string>
+            </property>
+            <property name="text">
+             <string>Edit set members...</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
@@ -112,22 +144,6 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
           <property name="spacing">
            <number>4</number>
           </property>
-          <item row="0" column="0">
-           <widget class="QPushButton" name="xformCopy_pushButton">
-            <property name="toolTip">
-             <string>Copy transform from last selected object</string>
-            </property>
-            <property name="text">
-             <string>Copy transform</string>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>24</width>
-              <height>24</height>
-             </size>
-            </property>
-           </widget>
-          </item>
           <item row="0" column="1">
            <widget class="QPushButton" name="xformPaste_pushButton">
             <property name="toolTip">
@@ -135,6 +151,10 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             </property>
             <property name="text">
              <string>Paste transform</string>
+            </property>
+            <property name="icon">
+             <iconset resource="icons.qrc">
+              <normaloff>:/icons/paste.png</normaloff>:/icons/paste.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -151,6 +171,30 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             </property>
             <property name="text">
              <string>Swap transforms</string>
+            </property>
+            <property name="icon">
+             <iconset resource="icons.qrc">
+              <normaloff>:/icons/swap.png</normaloff>:/icons/swap.png</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QPushButton" name="xformCopy_pushButton">
+            <property name="toolTip">
+             <string>Copy transform from last selected object</string>
+            </property>
+            <property name="text">
+             <string>Copy transform</string>
+            </property>
+            <property name="icon">
+             <iconset resource="icons.qrc">
+              <normaloff>:/icons/copy.png</normaloff>:/icons/copy.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -180,6 +224,10 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             <property name="text">
              <string>Import JSON...</string>
             </property>
+            <property name="icon">
+             <iconset resource="icons.qrc">
+              <normaloff>:/icons/import.png</normaloff>:/icons/import.png</iconset>
+            </property>
             <property name="iconSize">
              <size>
               <width>24</width>
@@ -196,6 +244,10 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             <property name="text">
              <string>Export JSON...</string>
             </property>
+            <property name="icon">
+             <iconset resource="icons.qrc">
+              <normaloff>:/icons/export.png</normaloff>:/icons/export.png</iconset>
+            </property>
             <property name="iconSize">
              <size>
               <width>24</width>
@@ -211,6 +263,10 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             </property>
             <property name="text">
              <string>Delete saved data</string>
+            </property>
+            <property name="icon">
+             <iconset resource="icons.qrc">
+              <normaloff>:/icons/delete.png</normaloff>:/icons/delete.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -288,12 +344,15 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="capture_pushButton">
+           <widget class="QToolButton" name="capture_toolButton">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Capture</string>
             </property>
             <property name="autoFillBackground">
              <bool>false</bool>
@@ -301,10 +360,17 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             <property name="text">
              <string>Capture</string>
             </property>
-            <property name="autoExclusive">
-             <bool>false</bool>
+            <property name="icon">
+             <iconset resource="icons.qrc">
+              <normaloff>:/icons/capture.png</normaloff>:/icons/capture.png</iconset>
             </property>
-            <property name="flat">
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+            <property name="autoExclusive">
              <bool>false</bool>
             </property>
            </widget>
@@ -320,7 +386,10 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
          <property name="title">
           <string>Captures</string>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
+         <property name="bgoverride" stdset="0">
+          <bool>false</bool>
+         </property>
+         <layout class="QVBoxLayout" name="capturesGroup_verticalLayout">
           <property name="spacing">
            <number>4</number>
           </property>
@@ -341,6 +410,9 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
             <property name="widgetResizable">
              <bool>true</bool>
             </property>
+            <property name="bgoverride" stdset="0">
+             <bool>false</bool>
+            </property>
             <widget class="QWidget" name="scrollAreaWidgetContents">
              <property name="geometry">
               <rect>
@@ -356,9 +428,12 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="bgoverride" stdset="0">
+              <bool>false</bool>
+             </property>
              <layout class="QVBoxLayout" name="captures_verticalLayout">
               <property name="spacing">
-               <number>2</number>
+               <number>4</number>
               </property>
               <property name="margin">
                <number>0</number>
@@ -576,6 +651,8 @@ An thumbnail image preview of the capture will be stored in the 'playblasts/scen
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="icons.qrc"/>
+ </resources>
  <connections/>
 </ui>
